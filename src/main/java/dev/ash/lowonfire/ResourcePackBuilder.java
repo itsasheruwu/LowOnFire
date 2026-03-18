@@ -27,10 +27,8 @@ public final class ResourcePackBuilder {
         {
           "pack": {
             "pack_format": 75,
-            "supported_formats": {
-              "min_inclusive": 75,
-              "max_inclusive": 75
-            },
+            "min_format": 75,
+            "max_format": 75,
             "description": "LowOnFire lowers the fire overlay."
           }
         }
