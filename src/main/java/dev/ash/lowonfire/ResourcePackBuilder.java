@@ -141,6 +141,7 @@ public final class ResourcePackBuilder {
 
     private static void writeZipEntry(final ZipOutputStream zipOutputStream, final String path, final byte[] content) throws IOException {
         final ZipEntry entry = new ZipEntry(path);
+        entry.setTime(0L);
         zipOutputStream.putNextEntry(entry);
         zipOutputStream.write(content);
         zipOutputStream.closeEntry();
