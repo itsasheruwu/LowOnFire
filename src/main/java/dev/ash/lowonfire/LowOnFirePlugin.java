@@ -3,6 +3,7 @@ package dev.ash.lowonfire;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -180,7 +181,8 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         }
 
         final UUID packId = UUID.nameUUIDFromBytes(("LowOnFire:" + this.generatedPacks.javaPack().sha1()).getBytes(StandardCharsets.UTF_8));
-        this.packOffer = new PackOffer(packId, publicUrl, this.generatedPacks.javaPack().sha1(), deserializePrompt(this.getConfig().getString("java-pack.prompt")));
+        final byte[] hashBytes = HexFormat.of().parseHex(this.generatedPacks.javaPack().sha1());
+        this.packOffer = new PackOffer(packId, publicUrl, hashBytes, this.generatedPacks.javaPack().sha1(), deserializePrompt(this.getConfig().getString("java-pack.prompt")));
         this.getLogger().info("Java pack ready at " + publicUrl);
     }
 
@@ -227,7 +229,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         player.setResourcePack(
             this.packOffer.id(),
             this.packOffer.url(),
-            this.packOffer.sha1(),
+            this.packOffer.hashBytes(),
             this.packOffer.prompt(),
             this.getConfig().getBoolean("java-pack.required", false)
         );
@@ -286,6 +288,6 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         return LEGACY_SERIALIZER.deserialize(prompt);
     }
 
-    private record PackOffer(UUID id, String url, String sha1, Component prompt) {
+    private record PackOffer(UUID id, String url, byte[] hashBytes, String sha1, Component prompt) {
     }
 }
