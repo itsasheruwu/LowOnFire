@@ -3,7 +3,6 @@ java-pack:
   send-on-join: true
   required: false
   bind-address: "0.0.0.0"
-  port: 25589
   path: "/low-on-fire.zip"
   public-url: "https://github.com/itsasheruwu/LowOnFire/releases/download/v1.0.0/low-on-fire.zip"
   prompt: "&6LowOnFire &7reduces the fire overlay so you can still see while burning."

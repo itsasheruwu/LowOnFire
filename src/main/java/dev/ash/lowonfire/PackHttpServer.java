@@ -15,9 +15,9 @@ public final class PackHttpServer {
     private final ExecutorService executor;
     private final String path;
 
-    public PackHttpServer(final String bindAddress, final int port, final String path, final byte[] body) throws IOException {
+    public PackHttpServer(final String bindAddress, final String path, final byte[] body) throws IOException {
         this.path = normalizePath(path);
-        this.server = HttpServer.create(new InetSocketAddress(bindAddress, port), 0);
+        this.server = HttpServer.create(new InetSocketAddress(bindAddress, 0), 0);
         this.executor = Executors.newSingleThreadExecutor(new PackThreadFactory());
         this.server.setExecutor(this.executor);
         this.server.createContext(this.path, exchange -> handle(exchange, body));
@@ -34,6 +34,10 @@ public final class PackHttpServer {
 
     public String path() {
         return this.path;
+    }
+
+    public int port() {
+        return this.server.getAddress().getPort();
     }
 
     private void handle(final HttpExchange exchange, final byte[] body) throws IOException {

@@ -129,8 +129,8 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
                     + event.getID()
                     + " expectedHash="
                     + expectedHash
-                    + ". Check java-pack.public-url, firewall/NAT rules for port "
-                    + this.getConfig().getInt("java-pack.port", 25589)
+                    + ". Check java-pack.public-url, firewall/NAT rules for the embedded HTTP port "
+                    + (this.packHttpServer == null ? "<stopped>" : this.packHttpServer.port())
                     + ", and whether the URL is reachable from the client."
             );
             case INVALID_URL -> this.getLogger().warning(
@@ -275,13 +275,13 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         }
 
         final String bindAddress = this.getConfig().getString("java-pack.bind-address", "0.0.0.0");
-        final int port = this.getConfig().getInt("java-pack.port", 25589);
         final String path = this.getConfig().getString("java-pack.path", "/low-on-fire.zip");
 
-        this.packHttpServer = new PackHttpServer(bindAddress, port, path, this.generatedPacks.javaPack().bytes());
+        this.packHttpServer = new PackHttpServer(bindAddress, path, this.generatedPacks.javaPack().bytes());
         this.packHttpServer.start();
 
-        final String publicUrl = resolvePublicUrl(this.packHttpServer.path(), port);
+        final int actualPort = this.packHttpServer.port();
+        final String publicUrl = resolvePublicUrl(this.packHttpServer.path(), actualPort);
         if (publicUrl == null) {
             this.packOffer = null;
             this.getLogger().warning("LowOnFire could not determine a public Java pack URL. Set java-pack.public-url or server-ip.");
@@ -292,6 +292,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         final byte[] hashBytes = HexFormat.of().parseHex(this.generatedPacks.javaPack().sha1());
         this.packOffer = new PackOffer(packId, publicUrl, hashBytes, this.generatedPacks.javaPack().sha1(), deserializePrompt(this.getConfig().getString("java-pack.prompt")));
         this.getLogger().info("Java pack ready at " + publicUrl);
+        this.getLogger().info("LowOnFire embedded HTTP server bound to " + bindAddress + ":" + actualPort + " for path " + this.packHttpServer.path());
         if (this.isVerboseDebug()) {
             this.getLogger().info(
                 "Pack offer configured: id="
@@ -302,6 +303,8 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
                     + this.packOffer.hashBytes().length
                     + " required="
                     + this.getConfig().getBoolean("java-pack.required", false)
+                    + " localPort="
+                    + actualPort
             );
         }
     }
@@ -411,7 +414,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         sender.sendMessage(Component.text("Java pack path: " + pathOrMissing(this.generatedPacks == null ? null : this.generatedPacks.javaPack().path()), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Join send enabled: " + this.getConfig().getBoolean("java-pack.send-on-join", true), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Pack required: " + this.getConfig().getBoolean("java-pack.required", false), NamedTextColor.GRAY));
-        sender.sendMessage(Component.text("Host bind: " + this.getConfig().getString("java-pack.bind-address", "0.0.0.0") + ":" + this.getConfig().getInt("java-pack.port", 25589), NamedTextColor.GRAY));
+        sender.sendMessage(Component.text("Host bind: " + this.getConfig().getString("java-pack.bind-address", "0.0.0.0") + ":" + (this.packHttpServer == null ? "<stopped>" : this.packHttpServer.port()), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Host path: " + this.getConfig().getString("java-pack.path", "/low-on-fire.zip"), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Public URL: " + this.getConfig().getString("java-pack.public-url", ""), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Online players: " + Bukkit.getOnlinePlayers().size(), NamedTextColor.GRAY));
@@ -513,7 +516,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
 
         this.getLogger().warning(
             "java-pack.public-url is empty; falling back to server-ip " + serverIp + ". "
-                + "This only works if players can reach that address directly."
+                + "This only works if players can reach that address directly. The embedded server chose port " + port + "."
         );
         return "http://" + serverIp + ":" + port + path;
     }
