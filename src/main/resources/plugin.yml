@@ -6,10 +6,11 @@ softdepend: [Geyser-Spigot, floodgate]
 commands:
   lowonfire:
     description: Reload LowOnFire or resend its resource pack.
-    usage: "/lowonfire <reload|apply|status|debug|probe> [player]"
-    permission: lowonfire.command
+    usage: "/lowonfire <reload|apply|status|debug|probe|on|off|toggle> [player]"
 permissions:
   lowonfire.command:
     default: op
   lowonfire.apply:
+    default: true
+  lowonfire.toggle:
     default: true

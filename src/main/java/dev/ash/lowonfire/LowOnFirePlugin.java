@@ -36,10 +36,12 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
     private PackHttpServer packHttpServer;
     private ResourcePackBuilder.GeneratedPacks generatedPacks;
     private PackOffer packOffer;
+    private PlayerPreferenceStore preferenceStore;
 
     @Override
     public void onEnable() {
         this.saveDefaultConfig();
+        this.preferenceStore = new PlayerPreferenceStore(this.getDataFolder().toPath());
         final PluginCommand command = this.getCommand("lowonfire");
         if (command != null) {
             command.setExecutor(this);
@@ -170,6 +172,11 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
 
     @Override
     public boolean onCommand(final CommandSender sender, final Command command, final String label, final String[] args) {
+        if (args.length > 0 && requiresAdminAccess(args[0]) && !sender.hasPermission("lowonfire.command")) {
+            sender.sendMessage(Component.text("You do not have permission to use that subcommand.", NamedTextColor.RED));
+            return true;
+        }
+
         if (args.length == 0 || "status".equalsIgnoreCase(args[0])) {
             sender.sendMessage(Component.text("LowOnFire", NamedTextColor.GOLD));
             sender.sendMessage(Component.text("Java pack: " + (this.packOffer == null ? "not sendable" : this.packOffer.url()), NamedTextColor.GRAY));
@@ -188,6 +195,22 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         if ("debug".equalsIgnoreCase(args[0])) {
             sendDebugSummary(sender);
             return true;
+        }
+
+        if ("on".equalsIgnoreCase(args[0]) || "enable".equalsIgnoreCase(args[0])) {
+            return setPackEnabled(sender, true);
+        }
+
+        if ("off".equalsIgnoreCase(args[0]) || "disable".equalsIgnoreCase(args[0])) {
+            return setPackEnabled(sender, false);
+        }
+
+        if ("toggle".equalsIgnoreCase(args[0])) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(Component.text("Only players can toggle their pack preference.", NamedTextColor.RED));
+                return true;
+            }
+            return setPackEnabled(sender, !isPackEnabledFor(player));
         }
 
         if ("probe".equalsIgnoreCase(args[0])) {
@@ -225,7 +248,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
             return true;
         }
 
-        sender.sendMessage(Component.text("Usage: /" + label + " <reload|apply|status> [player]", NamedTextColor.RED));
+        sender.sendMessage(Component.text("Usage: /" + label + " <reload|apply|status|debug|probe|on|off|toggle> [player]", NamedTextColor.RED));
         return true;
     }
 
@@ -242,6 +265,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         this.bedrockDetector = resolveBedrockDetector();
 
         try {
+            this.preferenceStore.load();
             this.generatedPacks = ResourcePackBuilder.build(
                 this.getDataFolder().toPath(),
                 this.getConfig().getDouble("appearance.height-scale", 0.38D)
@@ -341,6 +365,13 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
             return;
         }
 
+        if (!isPackEnabledFor(player)) {
+            if (this.isVerboseDebug()) {
+                this.getLogger().info("Skipping Java pack for " + player.getName() + " because they disabled LowOnFire.");
+            }
+            return;
+        }
+
         final boolean bedrock = this.bedrockDetector.isBedrockPlayer(player.getUniqueId());
         if (bedrock) {
             if (this.isVerboseDebug()) {
@@ -418,6 +449,9 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         sender.sendMessage(Component.text("Host path: " + this.getConfig().getString("java-pack.path", "/low-on-fire.zip"), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Public URL: " + this.getConfig().getString("java-pack.public-url", ""), NamedTextColor.GRAY));
         sender.sendMessage(Component.text("Online players: " + Bukkit.getOnlinePlayers().size(), NamedTextColor.GRAY));
+        if (sender instanceof Player player) {
+            sender.sendMessage(Component.text("Your pack preference: " + (isPackEnabledFor(player) ? "enabled" : "disabled"), NamedTextColor.GRAY));
+        }
     }
 
     private void probePackUrl(final CommandSender sender) {
@@ -523,6 +557,42 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
 
     private boolean isVerboseDebug() {
         return this.getConfig().getBoolean("debug.verbose-logging", true);
+    }
+
+    private boolean requiresAdminAccess(final String subcommand) {
+        return "reload".equalsIgnoreCase(subcommand)
+            || "apply".equalsIgnoreCase(subcommand)
+            || "debug".equalsIgnoreCase(subcommand)
+            || "probe".equalsIgnoreCase(subcommand);
+    }
+
+    private boolean setPackEnabled(final CommandSender sender, final boolean enabled) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("Only players can change their pack preference.", NamedTextColor.RED));
+            return true;
+        }
+
+        try {
+            final boolean changed = this.preferenceStore.setEnabled(player.getUniqueId(), enabled);
+            if (enabled) {
+                sender.sendMessage(Component.text(changed ? "LowOnFire is now enabled for you." : "LowOnFire was already enabled for you.", NamedTextColor.GREEN));
+                if (this.packOffer != null) {
+                    sendJavaPack(player);
+                    sender.sendMessage(Component.text("Resent the LowOnFire pack.", NamedTextColor.GRAY));
+                }
+            } else {
+                sender.sendMessage(Component.text(changed ? "LowOnFire is now disabled for you." : "LowOnFire was already disabled for you.", NamedTextColor.YELLOW));
+                sender.sendMessage(Component.text("Use /lowonfire on to re-enable it later.", NamedTextColor.GRAY));
+            }
+        } catch (final IOException exception) {
+            this.getLogger().warning("Failed to update LowOnFire preference for " + player.getName() + ": " + exception.getMessage());
+            sender.sendMessage(Component.text("Could not save your LowOnFire preference right now.", NamedTextColor.RED));
+        }
+        return true;
+    }
+
+    private boolean isPackEnabledFor(final Player player) {
+        return this.preferenceStore == null || this.preferenceStore.isEnabled(player.getUniqueId());
     }
 
     private static String pathOrMissing(final Path path) {
