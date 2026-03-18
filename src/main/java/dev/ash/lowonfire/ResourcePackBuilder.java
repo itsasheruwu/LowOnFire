@@ -23,6 +23,7 @@ public final class ResourcePackBuilder {
     private static final int FRAME_SIZE = 16;
     private static final int ICON_SIZE = 64;
     private static final String JAVA_ANIMATION_META = "{\"animation\":{\"frametime\":2}}";
+    private static final int WORLD_FIRE_UV_TOP = 8;
     private static final String JAVA_PACK_META = """
         {
           "pack": {
@@ -33,6 +34,87 @@ public final class ResourcePackBuilder {
           }
         }
         """;
+    private static final String FIRE_SIDE_MODEL = """
+        {
+          "textures": {
+            "particle": "#fire"
+          },
+          "ambientocclusion": false,
+          "elements": [
+            {
+              "from": [0, 0, 0.01],
+              "to": [16, 22.4, 0.01],
+              "shade": false,
+              "faces": {
+                "south": { "uv": [0, %d, 16, 16], "texture": "#fire" },
+                "north": { "uv": [0, %d, 16, 16], "texture": "#fire" }
+              }
+            }
+          ]
+        }
+        """.formatted(WORLD_FIRE_UV_TOP, WORLD_FIRE_UV_TOP);
+    private static final String FIRE_FLOOR_MODEL = """
+        {
+          "textures": {
+            "particle": "#fire"
+          },
+          "ambientocclusion": false,
+          "elements": [
+            {
+              "from": [0, 0, 8.8],
+              "to": [16, 22.4, 8.8],
+              "rotation": { "origin": [8, 8, 8], "axis": "x", "angle": -22.5, "rescale": true },
+              "shade": false,
+              "faces": { "south": { "uv": [0, %d, 16, 16], "texture": "#fire" } }
+            },
+            {
+              "from": [0, 0, 7.2],
+              "to": [16, 22.4, 7.2],
+              "rotation": { "origin": [8, 8, 8], "axis": "x", "angle": 22.5, "rescale": true },
+              "shade": false,
+              "faces": { "north": { "uv": [0, %d, 16, 16], "texture": "#fire" } }
+            },
+            {
+              "from": [8.8, 0, 0],
+              "to": [8.8, 22.4, 16],
+              "rotation": { "origin": [8, 8, 8], "axis": "z", "angle": -22.5, "rescale": true },
+              "shade": false,
+              "faces": { "west": { "uv": [0, %d, 16, 16], "texture": "#fire" } }
+            },
+            {
+              "from": [7.2, 0, 0],
+              "to": [7.2, 22.4, 16],
+              "rotation": { "origin": [8, 8, 8], "axis": "z", "angle": 22.5, "rescale": true },
+              "shade": false,
+              "faces": { "east": { "uv": [0, %d, 16, 16], "texture": "#fire" } }
+            }
+          ]
+        }
+        """.formatted(WORLD_FIRE_UV_TOP, WORLD_FIRE_UV_TOP, WORLD_FIRE_UV_TOP, WORLD_FIRE_UV_TOP);
+    private static final String FIRE_UP_MODEL = """
+        {
+          "textures": {
+            "particle": "#fire"
+          },
+          "ambientocclusion": false,
+          "elements": [
+            {
+              "from": [0, 16, 0],
+              "to": [16, 16, 16],
+              "rotation": { "origin": [16, 16, 8], "axis": "z", "angle": 22.5, "rescale": true },
+              "shade": false,
+              "faces": { "down": { "uv": [0, %d, 16, 16], "texture": "#fire", "rotation": 270 } }
+            },
+            {
+              "from": [0, 16, 0],
+              "to": [16, 16, 16],
+              "rotation": { "origin": [0, 16, 8], "axis": "z", "angle": -22.5, "rescale": true },
+              "shade": false,
+              "faces": { "down": { "uv": [0, %d, 16, 16], "texture": "#fire", "rotation": 90 } }
+            }
+          ]
+        }
+        """.formatted(WORLD_FIRE_UV_TOP, WORLD_FIRE_UV_TOP);
 
     private ResourcePackBuilder() {
     }
@@ -90,6 +172,9 @@ public final class ResourcePackBuilder {
             writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/fire_1.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
             writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/soul_fire_0.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
             writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/soul_fire_1.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
+            writeZipEntry(zipOutputStream, "assets/minecraft/models/block/template_fire_side.json", FIRE_SIDE_MODEL.getBytes(StandardCharsets.UTF_8));
+            writeZipEntry(zipOutputStream, "assets/minecraft/models/block/template_fire_floor.json", FIRE_FLOOR_MODEL.getBytes(StandardCharsets.UTF_8));
+            writeZipEntry(zipOutputStream, "assets/minecraft/models/block/template_fire_up.json", FIRE_UP_MODEL.getBytes(StandardCharsets.UTF_8));
         }
 
         return artifact(target);
