@@ -14,3 +14,6 @@ appearance:
 bedrock:
   auto-install-geyser-pack: true
   pack-file-name: "low-on-fire-bedrock.mcpack"
+
+debug:
+  verbose-logging: true
