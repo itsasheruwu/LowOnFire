@@ -1,0 +1,15 @@
+name: LowOnFire
+version: ${version}
+main: dev.ash.lowonfire.LowOnFirePlugin
+api-version: "1.21"
+softdepend: [Geyser-Spigot, floodgate]
+commands:
+  lowonfire:
+    description: Reload LowOnFire or resend its resource pack.
+    usage: "/lowonfire <reload|apply|status> [player]"
+    permission: lowonfire.command
+permissions:
+  lowonfire.command:
+    default: op
+  lowonfire.apply:
+    default: true

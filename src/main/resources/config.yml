@@ -1,0 +1,16 @@
+java-pack:
+  enabled: true
+  send-on-join: true
+  required: false
+  bind-address: "0.0.0.0"
+  port: 25589
+  path: "/low-on-fire.zip"
+  public-url: "https://raw.githubusercontent.com/itsasheruwu/LowOnFire/main/hosted/low-on-fire.zip"
+  prompt: "&6LowOnFire &7reduces the fire overlay so you can still see while burning."
+
+appearance:
+  height-scale: 0.38
+
+bedrock:
+  auto-install-geyser-pack: true
+  pack-file-name: "low-on-fire-bedrock.mcpack"
