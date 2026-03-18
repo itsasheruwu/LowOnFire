@@ -26,10 +26,10 @@ public final class ResourcePackBuilder {
     private static final String JAVA_PACK_META = """
         {
           "pack": {
-            "pack_format": 34,
+            "pack_format": 75,
             "supported_formats": {
-              "min_inclusive": 34,
-              "max_inclusive": 80
+              "min_inclusive": 75,
+              "max_inclusive": 75
             },
             "description": "LowOnFire lowers the fire overlay."
           }
