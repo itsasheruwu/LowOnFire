@@ -45,7 +45,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
     private PlayerPreferenceStore preferenceStore;
     private BedrockLowFirePreferenceStore bedrockPreferenceStore;
     private ResourcePack bedrockSessionPack;
-    private final EventRegistrar geyserEventRegistrar = EventRegistrar.of(this);
+    private EventRegistrar geyserEventRegistrar;
 
     @Override
     public void onEnable() {
@@ -445,20 +445,26 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
         }
 
         try {
+            this.geyserEventRegistrar = EventRegistrar.of(this);
             this.bedrockSessionPack = ResourcePack.create(PackCodec.path(this.generatedPacks.bedrockPack().path()));
             GeyserApi.api().eventBus().subscribe(this.geyserEventRegistrar, SessionLoadResourcePacksEvent.class, this::onSessionLoadResourcePacks);
             this.getLogger().info("Enabled Bedrock LowOnFire request mode. Players can opt in with /requestlowfire.");
         } catch (final Throwable throwable) {
             this.getLogger().warning("Could not enable Bedrock request mode; falling back to file-based Geyser pack install. " + throwable.getMessage());
             this.bedrockSessionPack = null;
+            this.geyserEventRegistrar = null;
         }
     }
 
     private void unregisterBedrockPackHook() {
+        if (this.geyserEventRegistrar == null) {
+            return;
+        }
         try {
             GeyserApi.api().eventBus().unregisterAll(this.geyserEventRegistrar);
         } catch (final Throwable ignored) {
         }
+        this.geyserEventRegistrar = null;
     }
 
     private void onSessionLoadResourcePacks(final SessionLoadResourcePacksEvent event) {

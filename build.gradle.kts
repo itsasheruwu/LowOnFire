@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.ash"
-version = "1.0.1"
+version = "1.0.2"
 
 repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
