@@ -37,6 +37,8 @@ import org.geysermc.geyser.api.pack.option.ResourcePackOption;
 
 public final class LowOnFirePlugin extends JavaPlugin implements Listener, CommandExecutor {
     private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
+    private static final String LEGACY_PUBLIC_URL = "https://github.com/itsasheruwu/LowOnFire/releases/download/v1.0.0/low-on-fire.zip";
+    private static final String DEFAULT_PUBLIC_URL = "https://github.com/itsasheruwu/LowOnFire/releases/download/v1.0.2/low-on-fire.zip";
 
     private BedrockDetector bedrockDetector = BedrockDetector.NONE;
     private PackHttpServer packHttpServer;
@@ -50,6 +52,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
     @Override
     public void onEnable() {
         this.saveDefaultConfig();
+        migrateLegacyPublicUrlIfNeeded();
         this.preferenceStore = new PlayerPreferenceStore(this.getDataFolder().toPath());
         this.bedrockPreferenceStore = new BedrockLowFirePreferenceStore(this.getDataFolder().toPath());
         final PluginCommand command = this.getCommand("lowonfire");
@@ -689,6 +692,16 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
                 + "This only works if players can reach that address directly. The embedded server chose port " + port + "."
         );
         return "http://" + serverIp + ":" + port + path;
+    }
+
+    private void migrateLegacyPublicUrlIfNeeded() {
+        final String configured = this.getConfig().getString("java-pack.public-url", "").trim();
+        if (!LEGACY_PUBLIC_URL.equals(configured)) {
+            return;
+        }
+        this.getConfig().set("java-pack.public-url", DEFAULT_PUBLIC_URL);
+        this.saveConfig();
+        this.getLogger().info("Updated java-pack.public-url from legacy v1.0.0 to v1.0.2.");
     }
 
     private boolean isVerboseDebug() {
