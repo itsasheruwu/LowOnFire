@@ -11,7 +11,7 @@ appearance:
   height-scale: 0.38
 
 bedrock:
-  auto-install-geyser-pack: true
+  auto-install-geyser-pack: false
   pack-file-name: "low-on-fire-bedrock.mcpack"
 
 debug:

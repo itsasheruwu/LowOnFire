@@ -2,6 +2,10 @@
 
 Paper `1.21.11` plugin that lowers the on-screen fire overlay for Java clients and exports a matching Bedrock pack for Geyser/Floodgate setups.
 
+The Java pack keeps in-world fire and soul fire identical to vanilla by embedding Mojang’s `1.21.11` block fire textures on alternate paths while block models still point at those assets; only the HUD overlay uses the generated shorter flames.
+
+LowOnFire is opt-in per player for both editions: players use `/requestlowfire` to enable and `/requestlowfire off` to disable. Java players are no longer auto-enabled by default, and the default config no longer auto-installs the Bedrock pack globally.
+
 ## Build
 
 ```bash

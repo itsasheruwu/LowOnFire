@@ -28,6 +28,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.geysermc.geyser.api.GeyserApi;
+import org.geysermc.geyser.api.event.EventRegistrar;
+import org.geysermc.geyser.api.event.bedrock.SessionLoadResourcePacksEvent;
+import org.geysermc.geyser.api.pack.PackCodec;
+import org.geysermc.geyser.api.pack.ResourcePack;
+import org.geysermc.geyser.api.pack.option.ResourcePackOption;
 
 public final class LowOnFirePlugin extends JavaPlugin implements Listener, CommandExecutor {
     private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
@@ -37,14 +43,22 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
     private ResourcePackBuilder.GeneratedPacks generatedPacks;
     private PackOffer packOffer;
     private PlayerPreferenceStore preferenceStore;
+    private BedrockLowFirePreferenceStore bedrockPreferenceStore;
+    private ResourcePack bedrockSessionPack;
+    private final EventRegistrar geyserEventRegistrar = EventRegistrar.of(this);
 
     @Override
     public void onEnable() {
         this.saveDefaultConfig();
         this.preferenceStore = new PlayerPreferenceStore(this.getDataFolder().toPath());
+        this.bedrockPreferenceStore = new BedrockLowFirePreferenceStore(this.getDataFolder().toPath());
         final PluginCommand command = this.getCommand("lowonfire");
         if (command != null) {
             command.setExecutor(this);
+        }
+        final PluginCommand requestCommand = this.getCommand("requestlowfire");
+        if (requestCommand != null) {
+            requestCommand.setExecutor(this);
         }
 
         this.getServer().getPluginManager().registerEvents(this, this);
@@ -59,6 +73,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
             this.packHttpServer.stop();
             this.packHttpServer = null;
         }
+        unregisterBedrockPackHook();
     }
 
     @EventHandler
@@ -172,6 +187,10 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
 
     @Override
     public boolean onCommand(final CommandSender sender, final Command command, final String label, final String[] args) {
+        if ("requestlowfire".equalsIgnoreCase(command.getName())) {
+            return handleRequestLowFireCommand(sender, args);
+        }
+
         if (args.length > 0 && requiresAdminAccess(args[0]) && !sender.hasPermission("lowonfire.command")) {
             sender.sendMessage(Component.text("You do not have permission to use that subcommand.", NamedTextColor.RED));
             return true;
@@ -266,6 +285,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
 
         try {
             this.preferenceStore.load();
+            this.bedrockPreferenceStore.load();
             this.generatedPacks = ResourcePackBuilder.build(
                 this.getDataFolder().toPath(),
                 this.getConfig().getDouble("appearance.height-scale", 0.38D)
@@ -285,6 +305,7 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
                 );
             }
             configureJavaPackOffer();
+            registerBedrockPackHookIfPossible();
             installBedrockPackIfPossible();
         } catch (final IOException exception) {
             this.packOffer = null;
@@ -334,6 +355,9 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
     }
 
     private void installBedrockPackIfPossible() throws IOException {
+        if (this.bedrockSessionPack != null) {
+            return;
+        }
         if (!this.getConfig().getBoolean("bedrock.auto-install-geyser-pack", true)) {
             return;
         }
@@ -357,6 +381,112 @@ public final class LowOnFirePlugin extends JavaPlugin implements Listener, Comma
             this.getLogger().info("Installed Bedrock pack at " + target + ". Restart the server or reload Geyser so Bedrock clients receive it.");
         } else {
             this.getLogger().info("Bedrock pack already up to date at " + target + ".");
+        }
+    }
+
+    private boolean handleRequestLowFireCommand(final CommandSender sender, final String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("Only players can request Bedrock LowOnFire.", NamedTextColor.RED));
+            return true;
+        }
+        if (!sender.hasPermission("lowonfire.request")) {
+            sender.sendMessage(Component.text("You do not have permission to request LowOnFire.", NamedTextColor.RED));
+            return true;
+        }
+        final boolean enable = args.length == 0
+            || (!"off".equalsIgnoreCase(args[0]) && !"disable".equalsIgnoreCase(args[0]));
+        final boolean bedrockPlayer = this.bedrockDetector.isBedrockPlayer(player.getUniqueId());
+
+        if (bedrockPlayer) {
+            if (this.bedrockSessionPack == null) {
+                sender.sendMessage(Component.text("Bedrock request mode is unavailable right now. Ask an admin to check Geyser and plugin logs.", NamedTextColor.RED));
+                return true;
+            }
+            try {
+                final boolean changed = this.bedrockPreferenceStore.setEnabled(player.getUniqueId(), enable);
+                if (enable) {
+                    sender.sendMessage(Component.text(changed ? "Bedrock LowOnFire requested. Rejoin to receive it." : "Bedrock LowOnFire was already requested. Rejoin to receive it.", NamedTextColor.GREEN));
+                } else {
+                    sender.sendMessage(Component.text(changed ? "Bedrock LowOnFire request removed. Rejoin to return to normal Bedrock fire." : "Bedrock LowOnFire was not enabled for you.", NamedTextColor.YELLOW));
+                }
+            } catch (final IOException exception) {
+                this.getLogger().warning("Failed to update Bedrock LowOnFire request for " + player.getName() + ": " + exception.getMessage());
+                sender.sendMessage(Component.text("Could not save your Bedrock LowOnFire request right now.", NamedTextColor.RED));
+            }
+            return true;
+        }
+
+        if (this.packOffer == null) {
+            sender.sendMessage(Component.text("Java LowOnFire is not available right now.", NamedTextColor.RED));
+            return true;
+        }
+        try {
+            final boolean changed = this.preferenceStore.setEnabled(player.getUniqueId(), enable);
+            if (enable) {
+                sendJavaPack(player);
+                sender.sendMessage(Component.text(changed ? "Java LowOnFire requested and sent." : "Java LowOnFire was already requested; pack resent.", NamedTextColor.GREEN));
+            } else {
+                sender.sendMessage(Component.text(changed ? "Java LowOnFire request removed. Rejoin to return to normal fire." : "Java LowOnFire was not enabled for you.", NamedTextColor.YELLOW));
+            }
+        } catch (final IOException exception) {
+            this.getLogger().warning("Failed to update Java LowOnFire request for " + player.getName() + ": " + exception.getMessage());
+            sender.sendMessage(Component.text("Could not save your Java LowOnFire request right now.", NamedTextColor.RED));
+        }
+        return true;
+    }
+
+    private void registerBedrockPackHookIfPossible() {
+        unregisterBedrockPackHook();
+        this.bedrockSessionPack = null;
+
+        final PluginManager pluginManager = this.getServer().getPluginManager();
+        if (!pluginManager.isPluginEnabled("Geyser-Spigot")) {
+            return;
+        }
+
+        try {
+            this.bedrockSessionPack = ResourcePack.create(PackCodec.path(this.generatedPacks.bedrockPack().path()));
+            GeyserApi.api().eventBus().subscribe(this.geyserEventRegistrar, SessionLoadResourcePacksEvent.class, this::onSessionLoadResourcePacks);
+            this.getLogger().info("Enabled Bedrock LowOnFire request mode. Players can opt in with /requestlowfire.");
+        } catch (final Throwable throwable) {
+            this.getLogger().warning("Could not enable Bedrock request mode; falling back to file-based Geyser pack install. " + throwable.getMessage());
+            this.bedrockSessionPack = null;
+        }
+    }
+
+    private void unregisterBedrockPackHook() {
+        try {
+            GeyserApi.api().eventBus().unregisterAll(this.geyserEventRegistrar);
+        } catch (final Throwable ignored) {
+        }
+    }
+
+    private void onSessionLoadResourcePacks(final SessionLoadResourcePacksEvent event) {
+        if (this.bedrockSessionPack == null || this.bedrockPreferenceStore == null) {
+            return;
+        }
+
+        final UUID uuid = event.connection().javaUuid();
+        if (uuid == null || !this.bedrockPreferenceStore.isEnabled(uuid)) {
+            return;
+        }
+
+        final boolean alreadyPresent = event.resourcePacks().stream()
+            .anyMatch(pack -> pack.uuid().equals(this.bedrockSessionPack.uuid()));
+        if (!alreadyPresent) {
+            event.register(this.bedrockSessionPack, new ResourcePackOption<?>[0]);
+        }
+        final boolean added = !alreadyPresent;
+        if (this.isVerboseDebug()) {
+            this.getLogger().info(
+                "Bedrock LowOnFire request "
+                    + (added ? "applied" : "not applied")
+                    + " for "
+                    + event.connection().javaUsername()
+                    + " ("
+                    + uuid
+                    + ")"
+            );
         }
     }
 

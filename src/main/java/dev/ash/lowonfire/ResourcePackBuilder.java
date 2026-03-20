@@ -6,6 +6,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -37,6 +38,8 @@ public final class ResourcePackBuilder {
     private static final String WORLD_FIRE_1_TEXTURE = "minecraft:block/low_on_fire/world_fire_1";
     private static final String WORLD_SOUL_FIRE_0_TEXTURE = "minecraft:block/low_on_fire/world_soul_fire_0";
     private static final String WORLD_SOUL_FIRE_1_TEXTURE = "minecraft:block/low_on_fire/world_soul_fire_1";
+    /** Vanilla block fire (from client 1.21.11); used only for in-world models, not the HUD overlay. */
+    private static final String VANILLA_WORLD_FIRE_RESOURCE_DIR = "vanilla-world-fire/";
 
     private ResourcePackBuilder() {
     }
@@ -61,10 +64,14 @@ public final class ResourcePackBuilder {
         final byte[] javaFire1 = createAnimatedFireTexture(normalPalette, heightScale, 1);
         final byte[] javaSoul0 = createAnimatedFireTexture(soulPalette, heightScale, 2);
         final byte[] javaSoul1 = createAnimatedFireTexture(soulPalette, heightScale, 3);
-        final byte[] worldFire0 = createAnimatedFireTexture(normalPalette, 1.0D, 0);
-        final byte[] worldFire1 = createAnimatedFireTexture(normalPalette, 1.0D, 1);
-        final byte[] worldSoul0 = createAnimatedFireTexture(soulPalette, 1.0D, 2);
-        final byte[] worldSoul1 = createAnimatedFireTexture(soulPalette, 1.0D, 3);
+        final byte[] worldFire0 = readVanillaWorldFire("fire_0.png");
+        final byte[] worldFire1 = readVanillaWorldFire("fire_1.png");
+        final byte[] worldSoul0 = readVanillaWorldFire("soul_fire_0.png");
+        final byte[] worldSoul1 = readVanillaWorldFire("soul_fire_1.png");
+        final byte[] worldFire0Meta = readVanillaWorldFire("fire_0.png.mcmeta");
+        final byte[] worldFire1Meta = readVanillaWorldFire("fire_1.png.mcmeta");
+        final byte[] worldSoul0Meta = readVanillaWorldFire("soul_fire_0.png.mcmeta");
+        final byte[] worldSoul1Meta = readVanillaWorldFire("soul_fire_1.png.mcmeta");
 
         final byte[] bedrockFire0 = createStaticFireTexture(normalPalette, heightScale, 0);
         final byte[] bedrockFire1 = createStaticFireTexture(normalPalette, heightScale, 1);
@@ -82,7 +89,11 @@ public final class ResourcePackBuilder {
             worldFire0,
             worldFire1,
             worldSoul0,
-            worldSoul1
+            worldSoul1,
+            worldFire0Meta,
+            worldFire1Meta,
+            worldSoul0Meta,
+            worldSoul1Meta
         );
         final PackArtifact bedrockPack = writeBedrockPack(packDirectory.resolve("low-on-fire-bedrock.mcpack"), icon, bedrockFire0, bedrockFire1, bedrockSoul0, bedrockSoul1);
 
@@ -99,7 +110,11 @@ public final class ResourcePackBuilder {
         final byte[] worldFire0,
         final byte[] worldFire1,
         final byte[] worldSoul0,
-        final byte[] worldSoul1
+        final byte[] worldSoul1,
+        final byte[] worldFire0Meta,
+        final byte[] worldFire1Meta,
+        final byte[] worldSoul0Meta,
+        final byte[] worldSoul1Meta
     ) throws IOException {
         try (OutputStream outputStream = Files.newOutputStream(target);
              ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream, StandardCharsets.UTF_8)) {
@@ -117,10 +132,10 @@ public final class ResourcePackBuilder {
             writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_fire_1.png", worldFire1);
             writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_soul_fire_0.png", worldSoul0);
             writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_soul_fire_1.png", worldSoul1);
-            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_fire_0.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
-            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_fire_1.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
-            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_soul_fire_0.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
-            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_soul_fire_1.png.mcmeta", JAVA_ANIMATION_META.getBytes(StandardCharsets.UTF_8));
+            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_fire_0.png.mcmeta", worldFire0Meta);
+            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_fire_1.png.mcmeta", worldFire1Meta);
+            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_soul_fire_0.png.mcmeta", worldSoul0Meta);
+            writeZipEntry(zipOutputStream, "assets/minecraft/textures/block/low_on_fire/world_soul_fire_1.png.mcmeta", worldSoul1Meta);
             writeZipEntry(zipOutputStream, "assets/minecraft/models/block/fire_floor0.json", fireModel("minecraft:block/template_fire_floor", WORLD_FIRE_0_TEXTURE).getBytes(StandardCharsets.UTF_8));
             writeZipEntry(zipOutputStream, "assets/minecraft/models/block/fire_floor1.json", fireModel("minecraft:block/template_fire_floor", WORLD_FIRE_1_TEXTURE).getBytes(StandardCharsets.UTF_8));
             writeZipEntry(zipOutputStream, "assets/minecraft/models/block/fire_side0.json", fireModel("minecraft:block/template_fire_side", WORLD_FIRE_0_TEXTURE).getBytes(StandardCharsets.UTF_8));
@@ -180,6 +195,16 @@ public final class ResourcePackBuilder {
         }
 
         return artifact(target);
+    }
+
+    private static byte[] readVanillaWorldFire(final String name) throws IOException {
+        final String path = VANILLA_WORLD_FIRE_RESOURCE_DIR + name;
+        try (InputStream stream = ResourcePackBuilder.class.getClassLoader().getResourceAsStream(path)) {
+            if (stream == null) {
+                throw new IOException("Missing classpath resource: " + path);
+            }
+            return stream.readAllBytes();
+        }
     }
 
     private static void writeZipEntry(final ZipOutputStream zipOutputStream, final String path, final byte[] content) throws IOException {

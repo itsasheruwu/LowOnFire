@@ -7,10 +7,15 @@ commands:
   lowonfire:
     description: Reload LowOnFire or resend its resource pack.
     usage: "/lowonfire <reload|apply|status|debug|probe|on|off|toggle> [player]"
+  requestlowfire:
+    description: Opt in to LowOnFire (Java or Bedrock).
+    usage: "/requestlowfire [off]"
 permissions:
   lowonfire.command:
     default: op
   lowonfire.apply:
     default: true
   lowonfire.toggle:
+    default: true
+  lowonfire.request:
     default: true

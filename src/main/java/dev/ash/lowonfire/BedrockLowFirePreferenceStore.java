@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-public final class PlayerPreferenceStore {
+public final class BedrockLowFirePreferenceStore {
     private final Path enabledPlayersFile;
     private final Set<UUID> enabledPlayers = new HashSet<>();
 
-    public PlayerPreferenceStore(final Path dataDirectory) {
-        this.enabledPlayersFile = dataDirectory.resolve("enabled-java-pack.txt");
+    public BedrockLowFirePreferenceStore(final Path dataDirectory) {
+        this.enabledPlayersFile = dataDirectory.resolve("enabled-bedrock-low-fire.txt");
     }
 
     public void load() throws IOException {
